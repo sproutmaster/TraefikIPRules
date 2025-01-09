@@ -1,0 +1,14 @@
+displayName: IP Rules Plugin
+type: middleware
+
+import: github.com/sproutmaster/TraefikIPRules
+
+summary: 'IPRules is a middleware plugin which accepts IP addresses or IP address ranges, and accepts or blocks requests originating from those IPs.'
+
+testData:
+  denyList:
+    - "192.168.1.0/24"  # Deny a subnet
+    - "10.0.0.1"        # Deny a specific IP
+  allowList:
+    - "192.168.2.0/24"  # Allow a subnet
+    - "10.0.0.2"        # Allow a specific IP
