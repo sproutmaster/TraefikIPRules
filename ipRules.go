@@ -7,13 +7,11 @@ import (
 	"strings"
 )
 
-// Config holds the plugin configuration
 type Config struct {
 	DenyList  []string `json:"denyList,omitempty"`
 	AllowList []string `json:"allowList,omitempty"`
 }
 
-// CreateConfig creates and initializes the plugin configuration
 func CreateConfig() *Config {
 	return &Config{
 		DenyList:  make([]string, 0),
@@ -30,7 +28,6 @@ type IPProcessor struct {
 	allowIPs   []net.IP
 }
 
-// New creates a new IPProcessor plugin
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
 	processor := &IPProcessor{
 		next: next,
