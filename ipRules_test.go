@@ -3,12 +3,11 @@ package ipRule_test
 import (
 	ipRule "TraefikIPRules"
 	"context"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNew(t *testing.T) {
@@ -121,6 +120,20 @@ func TestServeHTTP(t *testing.T) {
 			denyList:   []string{"192.168.1.0/24"},
 			allowList:  []string{"192.168.1.0/24"},
 			remoteAddr: "192.168.1.1:1234",
+			expected:   http.StatusForbidden,
+		},
+		{
+			desc:       "block subnet but allow everything else",
+			denyList:   []string{"192.168.1.0/24"},
+			allowList:  []string{"0.0.0.0/0"},
+			remoteAddr: "10.0.0.1:1234",
+			expected:   http.StatusOK,
+		},
+		{
+			desc:       "block subnet and verify it's blocked even with allow all",
+			denyList:   []string{"192.168.1.0/24"},
+			allowList:  []string{"0.0.0.0/0"},
+			remoteAddr: "192.168.1.100:1234",
 			expected:   http.StatusForbidden,
 		},
 		{
