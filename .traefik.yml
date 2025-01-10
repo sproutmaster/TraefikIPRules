@@ -3,7 +3,7 @@ type: middleware
 
 import: github.com/sproutmaster/TraefikIPRules
 
-summary: 'IPRules is a middleware plugin which accepts IP addresses or IP address ranges, and accepts or blocks requests originating from those IPs.'
+summary: 'TraefikIPRules is a middleware plugin which accepts IP addresses or IP address ranges, and accepts or blocks requests originating from those IPs.'
 
 testData:
   denyList:

@@ -1,8 +1,8 @@
-package ipRule_test
+package traefikiprules_test
 
 import (
-	ipRule "TraefikIPRules"
 	"context"
+	traefikiprules "github.com/sproutmaster/TraefikIPRules"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -52,14 +52,14 @@ func TestNew(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := ipRule.CreateConfig()
+			cfg := traefikiprules.CreateConfig()
 			cfg.DenyList = test.denyList
 			cfg.AllowList = test.allowList
 
 			ctx := context.Background()
 			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 
-			handler, err := ipRule.New(ctx, next, cfg, "ipRule plugin")
+			handler, err := traefikiprules.New(ctx, next, cfg, "ipRule plugin")
 
 			if test.expectedError {
 				assert.Error(t, err)
@@ -158,7 +158,7 @@ func TestServeHTTP(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := ipRule.CreateConfig()
+			cfg := traefikiprules.CreateConfig()
 			cfg.DenyList = test.denyList
 			cfg.AllowList = test.allowList
 
@@ -166,7 +166,7 @@ func TestServeHTTP(t *testing.T) {
 			next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 			recorder := httptest.NewRecorder()
 
-			handler, err := ipRule.New(ctx, next, cfg, "ip-processor-plugin")
+			handler, err := traefikiprules.New(ctx, next, cfg, "ip-processor-plugin")
 			require.NoError(t, err)
 
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost", nil)
@@ -186,7 +186,7 @@ func TestServeHTTP(t *testing.T) {
 }
 
 func TestCreateConfig(t *testing.T) {
-	cfg := ipRule.CreateConfig()
+	cfg := traefikiprules.CreateConfig()
 	assert.NotNil(t, cfg)
 	assert.Empty(t, cfg.DenyList)
 	assert.Empty(t, cfg.AllowList)
