@@ -13,7 +13,7 @@ originating from those IPs.
       plugins:
          ipRule:
             moduleName: "github.com/sproutmaster/TraefikIPRules"
-            version: "v1.0.1"
+            version: "v1.0.0"
    ```
    
 2. Configure Middleware
