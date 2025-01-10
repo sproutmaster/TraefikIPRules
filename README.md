@@ -15,6 +15,7 @@ originating from those IPs.
             moduleName: "github.com/sproutmaster/TraefikIPRules"
             version: "v1.0.0"
    ```
+   
 2. Configure Middleware
    ```yaml
    # middleware.yaml
@@ -30,6 +31,7 @@ originating from those IPs.
           allowList:
             - "0.0.0.0/0"
      ```
+   
 3. Reference it in ingressRoute
 
     ```yaml
@@ -50,3 +52,4 @@ originating from those IPs.
         middlewares:
           - name: ip-filter
       ```
+   
