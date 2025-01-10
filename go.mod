@@ -1,4 +1,4 @@
-module TraefikIPRules
+module github.com/sproutmaster/TraefikIPRules
 
 go 1.23
 
