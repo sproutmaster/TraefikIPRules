@@ -1,4 +1,4 @@
-package traefikiprules
+package TraefikIPRules
 
 import (
 	"context"
