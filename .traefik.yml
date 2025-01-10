@@ -1,9 +1,9 @@
-displayName: IP Rules Plugin
+displayName: IP Rules
 type: middleware
 
 import: github.com/sproutmaster/TraefikIPRules
 
-summary: 'TraefikIPRules is a middleware plugin which accepts IP addresses or IP address ranges, and accepts or blocks requests originating from those IPs.'
+summary: 'IPRules is a middleware plugin which accepts IP addresses or IP address ranges, and accepts or blocks requests originating from those IPs.'
 
 testData:
   denyList:
