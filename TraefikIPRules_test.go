@@ -13,37 +13,59 @@ import (
 func TestNew(t *testing.T) {
 	testCases := []struct {
 		desc          string
-		denyList      []string
-		allowList     []string
+		deny          []string
+		allow         []string
+		precedence    string
 		expectedError bool
 	}{
 		{
 			desc:          "invalid IP in deny list",
-			denyList:      []string{"invalid-ip"},
-			allowList:     []string{},
+			deny:          []string{"invalid-ip"},
+			allow:         []string{},
 			expectedError: true,
 		},
 		{
 			desc:          "invalid IP in allow list",
-			denyList:      []string{},
-			allowList:     []string{"invalid-ip"},
+			deny:          []string{},
+			allow:         []string{"invalid-ip"},
 			expectedError: true,
 		},
 		{
 			desc:          "invalid CIDR in deny list",
-			denyList:      []string{"192.168.1.0/33"},
-			allowList:     []string{},
+			deny:          []string{"192.168.1.0/33"},
+			allow:         []string{},
 			expectedError: true,
 		},
 		{
-			desc:      "valid configuration",
-			denyList:  []string{"192.168.1.0/24", "10.0.0.1"},
-			allowList: []string{"192.168.2.0/24", "10.0.0.2"},
+			desc:          "invalid IP range format",
+			deny:          []string{"192.168.1.1-invalid"},
+			allow:         []string{},
+			expectedError: true,
 		},
 		{
-			desc:      "empty configuration",
-			denyList:  []string{},
-			allowList: []string{},
+			desc:          "invalid IP range (start > end)",
+			deny:          []string{"192.168.1.100-192.168.1.1"},
+			allow:         []string{},
+			expectedError: true,
+		},
+		{
+			desc:          "invalid precedence value",
+			deny:          []string{},
+			allow:         []string{},
+			precedence:    "invalid",
+			expectedError: true,
+		},
+		{
+			desc:       "valid configuration with all rule types",
+			deny:       []string{"192.168.1.0/24", "10.0.0.1", "172.16.1.1-172.16.1.255"},
+			allow:      []string{"192.168.2.0/24", "10.0.0.2", "172.16.2.1-172.16.2.255"},
+			precedence: "deny",
+		},
+		{
+			desc:       "empty configuration",
+			deny:       []string{},
+			allow:      []string{},
+			precedence: "deny",
 		},
 	}
 
@@ -53,8 +75,9 @@ func TestNew(t *testing.T) {
 			t.Parallel()
 
 			cfg := TraefikIPRules.CreateConfig()
-			cfg.DenyList = test.denyList
-			cfg.AllowList = test.allowList
+			cfg.Deny = test.deny
+			cfg.Allow = test.allow
+			cfg.Precedence = test.precedence
 
 			ctx := context.Background()
 			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
@@ -74,81 +97,125 @@ func TestNew(t *testing.T) {
 func TestServeHTTP(t *testing.T) {
 	testCases := []struct {
 		desc       string
-		denyList   []string
-		allowList  []string
+		deny       []string
+		allow      []string
+		precedence string
 		remoteAddr string
 		xff        string
 		expected   int
 	}{
 		{
-			desc:       "allowed IP with no rules",
-			denyList:   []string{},
-			allowList:  []string{},
+			desc:       "deny by default with no rules",
+			deny:       []string{},
+			allow:      []string{},
+			precedence: "deny",
 			remoteAddr: "192.168.1.1:1234",
-			expected:   http.StatusOK,
+			expected:   http.StatusForbidden,
 		},
 		{
-			desc:       "IP in deny list",
-			denyList:   []string{"192.168.1.0/24"},
-			allowList:  []string{},
+			desc:       "IP in deny list (CIDR)",
+			deny:       []string{"192.168.1.0/24"},
+			allow:      []string{"10.0.0.0/8"},
+			precedence: "deny",
 			remoteAddr: "192.168.1.1:1234",
 			expected:   http.StatusForbidden,
 		},
 		{
 			desc:       "IP in deny list (specific IP)",
-			denyList:   []string{"10.0.0.1"},
-			allowList:  []string{},
+			deny:       []string{"10.0.0.1"},
+			allow:      []string{"10.0.0.0/8"},
+			precedence: "deny",
 			remoteAddr: "10.0.0.1:1234",
 			expected:   http.StatusForbidden,
 		},
 		{
-			desc:       "IP in allow list",
-			denyList:   []string{},
-			allowList:  []string{"192.168.1.0/24"},
-			remoteAddr: "192.168.1.1:1234",
-			expected:   http.StatusOK,
-		},
-		{
-			desc:       "IP not in allow list",
-			denyList:   []string{},
-			allowList:  []string{"192.168.1.0/24"},
-			remoteAddr: "192.168.2.1:1234",
-			expected:   http.StatusForbidden,
-		},
-		{
-			desc:       "IP in deny and allow list",
-			denyList:   []string{"192.168.1.0/24"},
-			allowList:  []string{"192.168.1.0/24"},
-			remoteAddr: "192.168.1.1:1234",
-			expected:   http.StatusForbidden,
-		},
-		{
-			desc:       "block subnet but allow everything else",
-			denyList:   []string{"192.168.1.0/24"},
-			allowList:  []string{"0.0.0.0/0"},
-			remoteAddr: "10.0.0.1:1234",
-			expected:   http.StatusOK,
-		},
-		{
-			desc:       "block subnet and verify it's blocked even with allow all",
-			denyList:   []string{"192.168.1.0/24"},
-			allowList:  []string{"0.0.0.0/0"},
+			desc:       "IP in deny range",
+			deny:       []string{"192.168.1.1-192.168.1.255"},
+			allow:      []string{"192.168.1.0/24"},
+			precedence: "deny",
 			remoteAddr: "192.168.1.100:1234",
 			expected:   http.StatusForbidden,
 		},
 		{
+			desc:       "IP in allow list but not in deny",
+			deny:       []string{"192.168.2.0/24"},
+			allow:      []string{"192.168.1.0/24"},
+			precedence: "deny",
+			remoteAddr: "192.168.1.1:1234",
+			expected:   http.StatusOK,
+		},
+		{
+			desc:       "IP in allow range",
+			deny:       []string{},
+			allow:      []string{"192.168.1.1-192.168.1.255"},
+			precedence: "deny",
+			remoteAddr: "192.168.1.100:1234",
+			expected:   http.StatusOK,
+		},
+		{
+			desc:       "IP not in allow list",
+			deny:       []string{},
+			allow:      []string{"192.168.1.0/24"},
+			precedence: "deny",
+			remoteAddr: "192.168.2.1:1234",
+			expected:   http.StatusForbidden,
+		},
+		{
+			desc:       "IP in both deny and allow list with deny precedence",
+			deny:       []string{"192.168.1.0/24"},
+			allow:      []string{"192.168.1.0/24"},
+			precedence: "deny",
+			remoteAddr: "192.168.1.1:1234",
+			expected:   http.StatusForbidden,
+		},
+		{
+			desc:       "IP in both deny and allow list with allow precedence",
+			deny:       []string{"192.168.1.0/24"},
+			allow:      []string{"192.168.1.0/24"},
+			precedence: "allow",
+			remoteAddr: "192.168.1.1:1234",
+			expected:   http.StatusOK,
+		},
+		{
 			desc:       "invalid remote address",
-			denyList:   []string{},
-			allowList:  []string{},
+			deny:       []string{},
+			allow:      []string{"192.168.1.0/24"},
+			precedence: "deny",
 			remoteAddr: "invalid-ip",
 			expected:   http.StatusForbidden,
 		},
 		{
-			desc:       "IP with X-Forwarded-For",
-			denyList:   []string{"192.168.1.0/24"},
-			allowList:  []string{},
+			desc:       "IP with X-Forwarded-For in deny list",
+			deny:       []string{"192.168.1.0/24"},
+			allow:      []string{"10.0.0.0/8"},
+			precedence: "deny",
 			remoteAddr: "10.0.0.1:1234",
 			xff:        "192.168.1.1, 10.0.0.1",
+			expected:   http.StatusForbidden,
+		},
+		{
+			desc:       "IP with X-Forwarded-For in allow list",
+			deny:       []string{},
+			allow:      []string{"192.168.1.0/24"},
+			precedence: "deny",
+			remoteAddr: "10.0.0.1:1234",
+			xff:        "192.168.1.1, 10.0.0.1",
+			expected:   http.StatusOK,
+		},
+		{
+			desc:       "IP in allow range but also in deny range with allow precedence",
+			deny:       []string{"192.168.1.1-192.168.1.255"},
+			allow:      []string{"192.168.1.100-192.168.1.200"},
+			precedence: "allow",
+			remoteAddr: "192.168.1.150:1234",
+			expected:   http.StatusOK,
+		},
+		{
+			desc:       "IP in allow range but also in deny range with deny precedence",
+			deny:       []string{"192.168.1.1-192.168.1.255"},
+			allow:      []string{"192.168.1.100-192.168.1.200"},
+			precedence: "deny",
+			remoteAddr: "192.168.1.150:1234",
 			expected:   http.StatusForbidden,
 		},
 	}
@@ -159,8 +226,9 @@ func TestServeHTTP(t *testing.T) {
 			t.Parallel()
 
 			cfg := TraefikIPRules.CreateConfig()
-			cfg.DenyList = test.denyList
-			cfg.AllowList = test.allowList
+			cfg.Deny = test.deny
+			cfg.Allow = test.allow
+			cfg.Precedence = test.precedence
 
 			ctx := context.Background()
 			next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
@@ -188,6 +256,7 @@ func TestServeHTTP(t *testing.T) {
 func TestCreateConfig(t *testing.T) {
 	cfg := TraefikIPRules.CreateConfig()
 	assert.NotNil(t, cfg)
-	assert.Empty(t, cfg.DenyList)
-	assert.Empty(t, cfg.AllowList)
+	assert.Empty(t, cfg.Deny)
+	assert.Empty(t, cfg.Allow)
+	assert.Equal(t, "deny", cfg.Precedence)
 }
