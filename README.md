@@ -13,7 +13,7 @@ or subnet.
       plugins:
          iprules:
             moduleName: "github.com/sproutmaster/TraefikIPRules"
-            version: "v1.0.1"
+            version: "v1.1"
    ```
 
 2. Configure Middleware
