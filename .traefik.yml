@@ -6,9 +6,10 @@ import: github.com/sproutmaster/TraefikIPRules
 summary: "Plugin to manage IP allow/deny rules"
 
 testData:
-  denyList:
+  deny:
     - "192.168.1.0/24"  # Deny a subnet
     - "10.0.0.1"        # Deny a specific IP
-  allowList:
+  allow:
     - "192.168.2.0/24"  # Allow a subnet
     - "10.0.0.2"        # Allow a specific IP
+  precedence: "deny"
