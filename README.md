@@ -1,7 +1,7 @@
 # Traefik IP Rules
 
-IPRules is a middleware plugin which accepts or blocks requests originating from those IPs based on an IP address, range
-or subnet.
+IPRules is a Traefik middleware plugin that filters incoming requests by allowing or denying access based on specified
+IP addresses, ranges, or subnets.
 
 ## How to use (Kubernetes CRD)
 
@@ -13,7 +13,7 @@ or subnet.
       plugins:
          iprules:
             moduleName: "github.com/sproutmaster/TraefikIPRules"
-            version: "v1.0.1"
+            version: "v1.0.2"
    ```
 
 2. Configure Middleware
@@ -27,13 +27,16 @@ or subnet.
       plugin:
         iprules:
           allow:
-           - "192.168.1.1"                    # Single IP
-           - "10.0.0.0/8"                     # CIDR range
-           - "172.16.1.1-172.16.1.255"        # IP range
+           - "192.168.1.1"                        # Single IP
+           - "10.0.0.0/8"                         # CIDR range
+           - "172.16.1.1-172.16.1.255"            # IP range
           deny:
-           - "192.168.1.100-192.168.1.200"    # Block this IP range
-           - "10.0.1.0/24"                    # Block this subnet
-          precedence: "deny"                  # deny first
+           - "192.168.1.100-192.168.1.200"        # Block this IP range
+           - "10.0.1.0/24"                        # Block this subnet
+          precedence: "deny"                      # deny first
+          customMessage: "Access denied"          # Custom deny message (default: "Access denied")
+          customMessageStatusCode: 403            # Custom HTTP status code 400-599 (default: 403)
+          customMessageContentType: "text/plain"  # Custom Content-Type header (default: text/plain)
      ```
 
 3. Reference it in ingressRoute
@@ -66,4 +69,7 @@ or subnet.
    - "traefik.http.middlewares.iprules.plugin.traefik-ip-rules.allow=172.16.1.1-172.16.1.255"
    - "traefik.http.middlewares.iprules.plugin.traefik-ip-rules.deny=192.168.1.100-192.168.1.200"
    - "traefik.http.middlewares.iprules.plugin.traefik-ip-rules.precedence=deny"
+   - "traefik.http.middlewares.iprules.plugin.traefik-ip-rules.customMessage=Access denied"
+   - "traefik.http.middlewares.iprules.plugin.traefik-ip-rules.customMessageStatusCode=403"
+   - "traefik.http.middlewares.iprules.plugin.traefik-ip-rules.customMessageContentType=application/json"
 ```
