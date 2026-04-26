@@ -9,9 +9,12 @@ import (
 )
 
 type Config struct {
-	Deny       []string `json:"deny,omitempty"`
-	Allow      []string `json:"allow,omitempty"`
-	Precedence string   `json:"precedence,omitempty"` // "allow" or "deny"
+	Deny                     []string `json:"deny,omitempty"`
+	Allow                    []string `json:"allow,omitempty"`
+	Precedence               string   `json:"precedence,omitempty"` // "allow" or "deny"
+	CustomMessage            string   `json:"customMessage,omitempty"`
+	CustomMessageStatusCode  int      `json:"customMessageStatusCode,omitempty"`
+	CustomMessageContentType string   `json:"customMessageContentType,omitempty"`
 }
 
 type ipRange struct {
@@ -37,6 +40,9 @@ type IPProcessor struct {
 	allowIPs    []net.IP
 	allowRanges []ipRange
 	precedence  string
+	statusCode  int
+	message     string
+	contentType string
 }
 
 func parseIPRange(ipRangeStr string) (*ipRange, error) {
@@ -93,10 +99,26 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		return nil, fmt.Errorf("invalid precedence value: %s. Must be either 'allow' or 'deny'", config.Precedence)
 	}
 
+	statusCode := config.CustomMessageStatusCode
+	if statusCode == 0 {
+		statusCode = http.StatusForbidden
+	}
+	if statusCode < 100 || statusCode > 599 {
+		return nil, fmt.Errorf("invalid customMessageStatusCode value: %d. Must be between 100 and 599", config.CustomMessageStatusCode)
+	}
+
+	message := config.CustomMessage
+	if message == "" {
+		message = "Access denied"
+	}
+
 	processor := &IPProcessor{
-		next:       next,
-		name:       name,
-		precedence: config.Precedence,
+		next:        next,
+		name:        name,
+		precedence:  config.Precedence,
+		statusCode:  statusCode,
+		message:     message,
+		contentType: config.CustomMessageContentType,
 	}
 
 	// Process deny rules
@@ -250,7 +272,13 @@ func (p *IPProcessor) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if !allowed {
-		http.Error(rw, "Access denied", http.StatusForbidden)
+		if p.contentType != "" {
+			rw.Header().Set("Content-Type", p.contentType)
+			rw.WriteHeader(p.statusCode)
+			rw.Write([]byte(p.message))
+		} else {
+			http.Error(rw, p.message, p.statusCode)
+		}
 		return
 	}
 
