@@ -12,7 +12,7 @@ type Config struct {
 	Deny                     []string `json:"deny,omitempty"`
 	Allow                    []string `json:"allow,omitempty"`
 	Precedence               string   `json:"precedence,omitempty"` // "allow" or "deny"
-	CustomMessage            string   `json:"customMessage,omitempty"`
+	CustomMessage            *string  `json:"customMessage,omitempty"`
 	CustomMessageStatusCode  int      `json:"customMessageStatusCode,omitempty"`
 	CustomMessageContentType string   `json:"customMessageContentType,omitempty"`
 }
@@ -107,9 +107,9 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		return nil, fmt.Errorf("invalid customMessageStatusCode value: %d. Must be between 100 and 599", config.CustomMessageStatusCode)
 	}
 
-	message := config.CustomMessage
-	if message == "" {
-		message = "Access denied"
+	message := "Access denied"
+	if config.CustomMessage != nil {
+		message = *config.CustomMessage
 	}
 
 	processor := &IPProcessor{
@@ -276,8 +276,10 @@ func (p *IPProcessor) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			rw.Header().Set("Content-Type", p.contentType)
 			rw.WriteHeader(p.statusCode)
 			rw.Write([]byte(p.message))
-		} else {
+		} else if p.message != "" {
 			http.Error(rw, p.message, p.statusCode)
+		} else {
+			rw.WriteHeader(p.statusCode)
 		}
 		return
 	}
