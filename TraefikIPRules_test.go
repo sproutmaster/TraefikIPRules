@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func strPtr(s string) *string { return &s }
+
 func TestNew(t *testing.T) {
 	testCases := []struct {
 		desc                     string
@@ -19,7 +21,7 @@ func TestNew(t *testing.T) {
 		allow                    []string
 		precedence               string
 		customMessageStatusCode  int
-		customMessage            string
+		customMessage            *string
 		customMessageContentType string
 		expectedError            bool
 	}{
@@ -108,7 +110,7 @@ func TestNew(t *testing.T) {
 			allow:                    []string{},
 			precedence:               "deny",
 			customMessageStatusCode:  503,
-			customMessage:            "Service unavailable",
+			customMessage:            strPtr("Service unavailable"),
 			customMessageContentType: "application/json",
 		},
 	}
@@ -148,12 +150,13 @@ func TestServeHTTP(t *testing.T) {
 		allow                    []string
 		precedence               string
 		customMessageStatusCode  int
-		customMessage            string
+		customMessage            *string
 		customMessageContentType string
 		remoteAddr               string
 		xff                      string
 		expected                 int
 		expectedBody             string
+		expectEmptyBody          bool
 		expectedContentType      string
 	}{
 		{
@@ -285,7 +288,7 @@ func TestServeHTTP(t *testing.T) {
 			deny:          []string{"192.168.1.0/24"},
 			allow:         []string{},
 			precedence:    "deny",
-			customMessage: "Blocked by policy",
+			customMessage: strPtr("Blocked by policy"),
 			remoteAddr:    "192.168.1.1:1234",
 			expected:      http.StatusForbidden,
 			expectedBody:  "Blocked by policy",
@@ -296,7 +299,7 @@ func TestServeHTTP(t *testing.T) {
 			allow:                   []string{},
 			precedence:              "deny",
 			customMessageStatusCode: 503,
-			customMessage:           "Service unavailable",
+			customMessage:           strPtr("Service unavailable"),
 			remoteAddr:              "192.168.1.1:1234",
 			expected:                503,
 			expectedBody:            "Service unavailable",
@@ -307,7 +310,7 @@ func TestServeHTTP(t *testing.T) {
 			allow:                    []string{},
 			precedence:               "deny",
 			customMessageStatusCode:  403,
-			customMessage:            `{"error": "blocked"}`,
+			customMessage:            strPtr(`{"error": "blocked"}`),
 			customMessageContentType: "application/json",
 			remoteAddr:               "192.168.1.1:1234",
 			expected:                 http.StatusForbidden,
@@ -324,12 +327,36 @@ func TestServeHTTP(t *testing.T) {
 			expectedBody: "Access denied",
 		},
 		{
+			desc:                     "explicit empty message with status code and content type",
+			deny:                     []string{"192.168.1.0/24"},
+			allow:                    []string{},
+			precedence:               "deny",
+			customMessageStatusCode:  503,
+			customMessage:            strPtr(""),
+			customMessageContentType: "text/plain",
+			remoteAddr:               "192.168.1.1:1234",
+			expected:                 503,
+			expectEmptyBody:          true,
+			expectedContentType:      "text/plain",
+		},
+		{
+			desc:                    "explicit empty message with status code only",
+			deny:                    []string{"192.168.1.0/24"},
+			allow:                   []string{},
+			precedence:              "deny",
+			customMessageStatusCode: 503,
+			customMessage:           strPtr(""),
+			remoteAddr:              "192.168.1.1:1234",
+			expected:                503,
+			expectEmptyBody:         true,
+		},
+		{
 			desc:                    "custom status code does not affect invalid IP response",
 			deny:                    []string{},
 			allow:                   []string{"192.168.1.0/24"},
 			precedence:              "deny",
 			customMessageStatusCode: 429,
-			customMessage:           "Rate limited",
+			customMessage:           strPtr("Rate limited"),
 			remoteAddr:              "invalid-ip",
 			expected:                http.StatusForbidden,
 			expectedBody:            "Invalid IP address",
@@ -372,6 +399,9 @@ func TestServeHTTP(t *testing.T) {
 			if test.expectedBody != "" {
 				assert.Equal(t, test.expectedBody, strings.TrimSpace(recorder.Body.String()))
 			}
+			if test.expectEmptyBody {
+				assert.Empty(t, recorder.Body.String())
+			}
 			if test.expectedContentType != "" {
 				assert.Equal(t, test.expectedContentType, recorder.Header().Get("Content-Type"))
 			}
@@ -386,6 +416,6 @@ func TestCreateConfig(t *testing.T) {
 	assert.Empty(t, cfg.Allow)
 	assert.Equal(t, "deny", cfg.Precedence)
 	assert.Equal(t, 0, cfg.CustomMessageStatusCode)
-	assert.Equal(t, "", cfg.CustomMessage)
+	assert.Nil(t, cfg.CustomMessage)
 	assert.Equal(t, "", cfg.CustomMessageContentType)
 }
