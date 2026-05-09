@@ -13,7 +13,7 @@ IP addresses, ranges, or subnets.
       plugins:
          iprules:
             moduleName: "github.com/sproutmaster/TraefikIPRules"
-            version: "v1.0.2"
+            version: "v1.0.3"
    ```
 
 2. Configure Middleware
@@ -34,8 +34,8 @@ IP addresses, ranges, or subnets.
            - "192.168.1.100-192.168.1.200"        # Block this IP range
            - "10.0.1.0/24"                        # Block this subnet
           precedence: "deny"                      # deny first
-          customMessage: "Access denied"          # Custom deny message (default: "Access denied")
-          customMessageStatusCode: 403            # Custom HTTP status code 400-599 (default: 403)
+          customMessage: "Access denied"          # Custom deny message (default: "Access denied"). Set to "" for empty body.
+          customMessageStatusCode: 403            # Custom HTTP status code 100-599 (default: 403)
           customMessageContentType: "text/plain"  # Custom Content-Type header (default: text/plain)
      ```
 
